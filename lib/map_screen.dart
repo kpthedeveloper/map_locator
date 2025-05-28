@@ -72,7 +72,7 @@ class _MapScreenState extends State<MapScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
       final LatLng newCenter = LatLng(position.latitude, position.longitude);
-      print("(*********** User's location: $newCenter");
+      //print("(*********** User's location: $newCenter");
       setState(() {
         _userLocation = newCenter;
         currentCenter = newCenter;
@@ -83,7 +83,7 @@ class _MapScreenState extends State<MapScreen> {
         _locationReceived = true;
       });
     } catch (e) {
-      print("Error getting location: $e");
+      //print("Error getting location: $e");
       if (kIsWeb) {
         setState(() {
           _locationReceived = true;
