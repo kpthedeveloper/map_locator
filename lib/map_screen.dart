@@ -14,7 +14,9 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final List<Marker> _markers = [];
-  double initialZoom = 13;
+  final List<LatLng> _markedPoints = []; // To store the order of added points
+  final List<String> _pointNames = []; // To store the names of the points
+  double initialZoom = 15;
   final MapController mapController = MapController();
   LatLng currentCenter = LatLng(
     50.97,
@@ -70,7 +72,7 @@ class _MapScreenState extends State<MapScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
       final LatLng newCenter = LatLng(position.latitude, position.longitude);
-      //print("(*********** User's location: $newCenter");
+      print("(*********** User's location: $newCenter");
       setState(() {
         _userLocation = newCenter;
         currentCenter = newCenter;
@@ -81,7 +83,7 @@ class _MapScreenState extends State<MapScreen> {
         _locationReceived = true;
       });
     } catch (e) {
-      //print("Error getting location: $e");
+      print("Error getting location: $e");
       if (kIsWeb) {
         setState(() {
           _locationReceived = true;
@@ -92,34 +94,121 @@ class _MapScreenState extends State<MapScreen> {
 
   void _addMarker(LatLng position) {
     setState(() {
+      final serialNumber = _markers.length + 1;
       _markers.add(
         Marker(
           width: 80.0,
           height: 80.0,
           point: position,
-          child: GestureDetector(
-            onTap: () {
-              _removeMarker(position); // Remove marker on tap
-            },
-            child: const Icon(
-              Icons.location_pin,
-              color: Colors.blue,
-              size: 40.0,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(Icons.location_pin, color: Colors.blue, size: 40.0),
+              Positioned(
+                bottom: 5.0,
+                child: Text(
+                  '$serialNumber',
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _removeMarker(position); // Remove marker on tap
+                },
+                behavior:
+                    HitTestBehavior.opaque, // Make the whole stack tappable
+              ),
+            ],
           ),
         ),
       );
+      _markedPoints.add(position); // Add the point to the ordered list
+      _pointNames.add('Point $serialNumber'); // Initialize with default name
     });
   }
 
   void _removeMarker(LatLng position) {
     setState(() {
-      _markers.removeWhere(
+      final indexToRemove = _markers.indexWhere(
         (marker) =>
             marker.point.latitude == position.latitude &&
             marker.point.longitude == position.longitude,
       );
+      if (indexToRemove != -1) {
+        _markers.removeAt(indexToRemove);
+        _markedPoints.removeAt(indexToRemove);
+        _pointNames.removeAt(indexToRemove);
+        // Rebuild the serial numbers for the remaining markers
+        for (int i = 0; i < _markers.length; i++) {
+          final newMarker = Marker(
+            width: 80.0,
+            height: 80.0,
+            point: _markers[i].point,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.location_pin, color: Colors.blue, size: 40.0),
+                Positioned(
+                  bottom: 5.0,
+                  child: Text(
+                    '${i + 1}',
+                    style: const TextStyle(
+                      fontSize: 12.0,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _removeMarker(_markers[i].point);
+                  },
+                  behavior: HitTestBehavior.opaque,
+                ),
+              ],
+            ),
+          );
+          _markers[i] = newMarker;
+        }
+      }
     });
+  }
+
+  void _renamePoint(int index) async {
+    final TextEditingController controller = TextEditingController(
+      text: _pointNames[index],
+    );
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Rename Point'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'Enter new name'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _pointNames[index] = controller.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Rename'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _launchGoogleMaps(List<LatLng> positions) async {
@@ -132,7 +221,7 @@ class _MapScreenState extends State<MapScreen> {
       // Build URL for multiple points (directions)
       googleMapsUrl = 'https://www.google.com/maps/dir/';
       for (int i = 0; i < positions.length; i++) {
-        googleMapsUrl += '${positions[i].latitude},${positions[i].longitude}/';
+        googleMapsUrl += '${positions[i].latitude},${positions[i].longitude}';
 
         if (i < positions.length - 1) {
           googleMapsUrl +=
@@ -208,6 +297,8 @@ class _MapScreenState extends State<MapScreen> {
               onPressed: () {
                 setState(() {
                   _markers.clear(); // Clear all markers
+                  _markedPoints.clear(); // Clear the list of marked points
+                  _pointNames.clear(); // Clear the list of point names
                 });
               },
               child: const Icon(Icons.delete),
@@ -259,6 +350,64 @@ class _MapScreenState extends State<MapScreen> {
                 });
               },
               child: const Icon(Icons.zoom_out_rounded),
+            ),
+          ),
+          // Floating list of marked points
+          Positioned(
+            top: 150.0,
+            right: 20.0,
+            child: Material(
+              elevation: 4.0,
+              borderRadius: BorderRadius.circular(8.0),
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                constraints: BoxConstraints(
+                  maxHeight: 400.0, // Adjust as needed
+                  maxWidth:
+                      MediaQuery.of(context).size.width * 0.25, // Adjust width
+                ),
+                child:
+                    _markedPoints.isEmpty
+                        ? const Text("No points marked yet.")
+                        : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _markedPoints.length,
+                          itemBuilder: (context, index) {
+                            final point = _markedPoints[index];
+                            return ListTile(
+                              title: Text(_pointNames[index]),
+                              subtitle: Text(
+                                '(${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)})',
+                                style: const TextStyle(fontSize: 12.0),
+                              ),
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue.shade100,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(fontSize: 12.0),
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () {
+                                      _renamePoint(index);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _removeMarker(point);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+              ),
             ),
           ),
         ],
