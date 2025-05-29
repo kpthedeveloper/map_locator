@@ -9,10 +9,10 @@ class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
   @override
-  _MapScreenState createState() => _MapScreenState();
+  MapScreenState createState() => MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class MapScreenState extends State<MapScreen> {
   final List<Marker> _markers = [];
   final List<LatLng> _markedPoints = []; // To store the order of added points
   final List<String> _pointNames = []; // To store the names of the points
