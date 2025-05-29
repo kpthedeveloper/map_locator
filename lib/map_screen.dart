@@ -354,7 +354,7 @@ class MapScreenState extends State<MapScreen> {
           ),
           // Floating list of marked points
           Positioned(
-            top: 150.0,
+            top: MediaQuery.of(context).size.width > 600 ? 150.0 : 5,
             right: 20.0,
             child: Material(
               elevation: 4.0,
@@ -364,48 +364,102 @@ class MapScreenState extends State<MapScreen> {
                 constraints: BoxConstraints(
                   maxHeight: 400.0, // Adjust as needed
                   maxWidth:
-                      MediaQuery.of(context).size.width * 0.25, // Adjust width
+                      MediaQuery.of(context).size.width > 600
+                          ? MediaQuery.of(context).size.width * 0.25
+                          : MediaQuery.of(context).size.width * .90,
                 ),
                 child:
                     _markedPoints.isEmpty
                         ? const Text("No points marked yet.")
-                        : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _markedPoints.length,
-                          itemBuilder: (context, index) {
-                            final point = _markedPoints[index];
-                            return ListTile(
-                              title: Text(_pointNames[index]),
-                              subtitle: Text(
-                                '(${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)})',
-                                style: const TextStyle(fontSize: 12.0),
+                        : SingleChildScrollView(
+                          // Wrap ExpansionTile in SingleChildScrollView
+                          child: ExpansionTile(
+                            tilePadding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                              vertical: 0.0,
+                            ),
+                            title: Text(
+                              'Marked Points (${_markedPoints.length})',
+                              style: const TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
                               ),
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.blue.shade100,
-                                child: Text(
-                                  '${index + 1}',
-                                  style: const TextStyle(fontSize: 12.0),
-                                ),
+                            ),
+                            children: [
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics:
+                                    const NeverScrollableScrollPhysics(), // Disable scrolling of inner ListView
+                                itemCount: _markedPoints.length,
+                                itemBuilder: (context, index) {
+                                  final point = _markedPoints[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 2.0,
+                                    ),
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 8.0,
+                                            vertical: 0.0,
+                                          ),
+                                      title: Text(
+                                        _pointNames[index],
+                                        style: const TextStyle(fontSize: 14.0),
+                                      ),
+                                      subtitle: Text(
+                                        '(${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)})',
+                                        style: const TextStyle(fontSize: 10.0),
+                                      ),
+                                      leading: CircleAvatar(
+                                        radius: 12.0,
+                                        backgroundColor: Colors.blue.shade100,
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            fontSize: 10.0,
+                                          ),
+                                        ),
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 18.0,
+                                            ),
+                                            onPressed: () {
+                                              _renamePoint(index);
+                                            },
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 32.0,
+                                              minHeight: 32.0,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.clear,
+                                              size: 18.0,
+                                            ),
+                                            onPressed: () {
+                                              _removeMarker(point);
+                                            },
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 32.0,
+                                              minHeight: 32.0,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () {
-                                      _renamePoint(index);
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      _removeMarker(point);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
               ),
             ),
