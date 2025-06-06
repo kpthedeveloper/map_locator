@@ -20,7 +20,7 @@ class MapScreenState extends State<MapScreen> {
   final List<Marker> _markers = [];
   final List<LatLng> _markedPoints = [];
   final List<String> _pointNames = [];
-  double initialZoom = 15;
+  double initialZoom = 15.0;
   final MapController mapController = MapController();
   LatLng currentCenter = const LatLng(
     50.97,
@@ -208,6 +208,17 @@ class MapScreenState extends State<MapScreen> {
                 setState(() {
                   if (event is MapEventMove) {
                     currentCenter = event.camera.center;
+                  }
+                  if (event is MapEventMoveEnd ||
+                      event is MapEventDoubleTapZoomEnd ||
+                      event is MapEventFlingAnimationEnd ||
+                      event is MapEventRotateEnd ||
+                      event is MapEventScrollWheelZoom) {
+                    if (initialZoom < event.camera.zoom) {
+                      initialZoom += 1;
+                    } else if (initialZoom > event.camera.zoom) {
+                      initialZoom -= 1;
+                    }
                   }
                 });
               },
