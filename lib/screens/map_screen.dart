@@ -261,6 +261,7 @@ class MapScreenState extends State<MapScreen> {
                 mapController.move(currentCenter, initialZoom);
               });
             },
+            hasMarkedPoints: _markedPoints.isNotEmpty,
           ),
 
           MarkedPointsList(

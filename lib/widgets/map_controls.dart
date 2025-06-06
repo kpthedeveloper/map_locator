@@ -6,6 +6,7 @@ class MapControls extends StatelessWidget {
   final VoidCallback onCenterToUser;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
+  final bool hasMarkedPoints; // New parameter to indicate if points are marked
 
   const MapControls({
     super.key,
@@ -14,10 +15,16 @@ class MapControls extends StatelessWidget {
     required this.onCenterToUser,
     required this.onZoomIn,
     required this.onZoomOut,
+    required this.hasMarkedPoints, // Initialize the new parameter
   });
 
   @override
   Widget build(BuildContext context) {
+    // Determine the color for the share icon and if the button should be enabled
+    final Color shareIconColor = hasMarkedPoints ? Colors.green : Colors.grey;
+    final VoidCallback? shareOnPressed =
+        hasMarkedPoints ? onShareMarkers : null;
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -26,17 +33,21 @@ class MapControls extends StatelessWidget {
           Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              // Share Markers button
+              FloatingActionButton(
+                heroTag: 'googleMaps',
+                onPressed: shareOnPressed, // Use the conditional onPressed
+                child: Icon(
+                  Icons.pin_drop,
+                  color: shareIconColor,
+                ), // Use conditional color
+              ),
+
+              const SizedBox(height: 20.0), // Spacing between buttons
               FloatingActionButton(
                 heroTag: 'clearMarkers',
                 onPressed: onClearMarkers,
-                child: const Icon(Icons.delete),
-              ),
-              const SizedBox(height: 20.0), // Spacing between buttons
-              // Share Markers button
-              FloatingActionButton(
-                heroTag: 'shareMarkers',
-                onPressed: onShareMarkers,
-                child: const Icon(Icons.ios_share_rounded),
+                child: const Icon(Icons.delete, color: Colors.red),
               ),
             ],
           ),
@@ -47,7 +58,7 @@ class MapControls extends StatelessWidget {
               FloatingActionButton(
                 heroTag: 'centerToUser', // Unique tag
                 onPressed: onCenterToUser,
-                child: const Icon(Icons.my_location),
+                child: const Icon(Icons.my_location, color: Colors.blue),
               ),
               const SizedBox(height: 20.0), // Spacing between buttons
               // Zoom In button
