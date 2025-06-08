@@ -5,7 +5,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:map_locator/models/map_data.dart';
+import 'package:map_locator/screens/saved_maps_screen.dart';
 import 'package:map_locator/sevices/location_service.dart';
+import 'package:map_locator/utils/database_helper.dart';
 import 'package:map_locator/utils/map_utils.dart';
 import 'package:map_locator/widgets/map_controls.dart';
 import 'package:map_locator/widgets/marked_points_list.dart';
@@ -39,6 +42,7 @@ class MapScreenState extends State<MapScreen> {
   LatLng? _userLocation;
   final GlobalKey _qrKey = GlobalKey();
   final TextEditingController _searchController = TextEditingController();
+  MapData? _currentLoadedMap;
 
   @override
   void initState() {
@@ -503,6 +507,131 @@ class MapScreenState extends State<MapScreen> {
     }
   }
 
+  // In your MapScreenState class (lib/screens/map_screen.dart)
+
+  Future<void> _saveMap() async {
+    final dbHelper = DatabaseHelper.instance;
+
+    // Use a TextEditingController specifically for this dialog
+    final TextEditingController nameController;
+    String dialogTitle;
+
+    if (_currentLoadedMap != null) {
+      // If a map is currently loaded for editing, pre-fill its name
+      nameController = TextEditingController(text: _currentLoadedMap!.name);
+      dialogTitle = 'Save Changes to Map';
+    } else {
+      // If no map is loaded (new map), start with an empty controller
+      nameController = TextEditingController();
+      dialogTitle = 'Save New Map';
+    }
+
+    final String? mapName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(dialogTitle),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(hintText: 'Enter map name'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                nameController
+                    .dispose(); // Dispose the controller when dialog is dismissed
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final result = nameController.text;
+                nameController
+                    .dispose(); // Dispose the controller when dialog is dismissed
+                Navigator.of(context).pop(result);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (mapName != null && mapName.isNotEmpty) {
+      final MapData mapToSave = MapData(
+        id:
+            _currentLoadedMap
+                ?.id, // Pass existing ID if present, otherwise null for new map
+        name: mapName,
+        points:
+            _markedPoints
+                .asMap()
+                .entries
+                .map(
+                  (e) => MapPoint(
+                    latitude: e.value.latitude,
+                    longitude: e.value.longitude,
+                    name: _pointNames[e.key],
+                  ),
+                )
+                .toList(),
+      );
+
+      if (_currentLoadedMap != null && _currentLoadedMap!.id != null) {
+        // If editing an existing map, update it
+        await dbHelper.updateMap(mapToSave);
+        // Update _currentLoadedMap to reflect any name change and current points
+        _currentLoadedMap = mapToSave;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Map "$mapName" updated successfully!')),
+          );
+        }
+      } else {
+        // If saving a new map, insert it
+        final newId = await dbHelper.insertMap(mapToSave);
+        // Set the newly saved map as the current loaded map
+        _currentLoadedMap = MapData(
+          id: newId,
+          name: mapToSave.name,
+          points: mapToSave.points,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('New map "$mapName" saved successfully!')),
+          );
+        }
+      }
+    }
+  }
+
+  void _loadMap(MapData mapData) {
+    // <--- CHANGE PARAMETER TYPE
+    setState(() {
+      _currentLoadedMap = mapData; // <--- Store the loaded map data
+      _markedPoints.clear();
+      _pointNames.clear();
+      _markers.clear();
+
+      // Populate points from the loaded mapData
+      for (var p in mapData.points) {
+        _markedPoints.add(LatLng(p.latitude, p.longitude));
+        _pointNames.add(p.name);
+      }
+      _rebuildMarkersAfterReorder();
+
+      // Optionally, center the map on the first point or a suitable zoom level
+      if (_markedPoints.isNotEmpty) {
+        mapController.move(_markedPoints.first, initialZoom);
+      }
+    });
+    // Show a confirmation message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Map "${mapData.name}" loaded for editing.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -510,9 +639,36 @@ class MapScreenState extends State<MapScreen> {
         title: const Text('Geo Marker App'),
         actions: [
           IconButton(
-            // <--- ADD THIS ICON BUTTON
             icon: const Icon(Icons.search),
             onPressed: _showSearchDialog, // Call the new dialog function
+          ),
+          IconButton(icon: const Icon(Icons.save), onPressed: _saveMap),
+          IconButton(
+            icon: const Icon(Icons.folder_open), // Add the load map icon
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SavedMapsScreen(onLoadMap: _loadMap),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.note_add), // Icon for "New Map"
+            tooltip: 'Start New Map',
+            onPressed: () {
+              setState(() {
+                _markedPoints.clear();
+                _pointNames.clear();
+                _markers.clear();
+                _rebuildMarkersAfterReorder();
+                _currentLoadedMap =
+                    null; // IMPORTANT: Clear the loaded map state
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cleared map. Starting new.')),
+              );
+            },
           ),
         ],
       ),
