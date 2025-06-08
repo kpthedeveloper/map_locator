@@ -45,6 +45,7 @@ dependencies:
   geocoding: ^4.0.0
   sqflite: ^2.4.2
   path: ^1.9.1
+  circular_menu: ^4.0.0
 
 dev_dependencies:
   flutter_test:

@@ -12,15 +12,15 @@ import 'package:map_locator/utils/database_helper.dart';
 import 'package:map_locator/utils/map_utils.dart';
 import 'package:map_locator/widgets/map_controls.dart';
 import 'package:map_locator/widgets/marked_points_list.dart';
-import 'dart:io'; // For File operations
-import 'dart:ui' as ui; // For Image operations (used for toImage)
-import 'package:path_provider/path_provider.dart'; // For getting temporary directory
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart'; // For sharing
-import 'package:flutter/scheduler.dart'; // Add this import for SchedulerBinding
-// For RenderRepaintBoundary
+import 'package:share_plus/share_plus.dart';
+import 'package:flutter/scheduler.dart';
 import 'dart:async';
 import 'package:geocoding/geocoding.dart' as geo;
+import 'package:circular_menu/circular_menu.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -35,13 +35,11 @@ class MapScreenState extends State<MapScreen> {
   final List<String> _pointNames = [];
   double initialZoom = 15.0;
   final MapController mapController = MapController();
-  LatLng currentCenter = const LatLng(
-    50.97,
-    4.95,
-  ); // Initialize at Scherpenheuvel-Zichem
+  LatLng currentCenter = const LatLng(0, 0);
   LatLng? _userLocation;
   final GlobalKey _qrKey = GlobalKey();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _mapNameController = TextEditingController();
   MapData? _currentLoadedMap;
 
   @override
@@ -52,7 +50,7 @@ class MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    // <--- ADD THIS dispose method to clean up the controller
+    _mapNameController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -66,7 +64,7 @@ class MapScreenState extends State<MapScreen> {
         locationService.locationPermission ==
             LocationPermission.deniedForever) {
       if (kIsWeb) {
-        setState(() {}); // Trigger rebuild for web
+        setState(() {});
       }
       return;
     }
@@ -169,6 +167,37 @@ class MapScreenState extends State<MapScreen> {
         mapController.move(_userLocation!, initialZoom);
       });
     }
+  }
+
+  Future<void> _launchRoutesOnGoogleMap() async {
+    if (_markedPoints.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please mark at least one point to launch Google Maps.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final String? googleMapsUrl = await MapUtils.getGoogleMapsUrl(
+      _markedPoints,
+    );
+
+    if (googleMapsUrl == null || googleMapsUrl.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not generate Google Maps link.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+    //launch google maps with the generated URL
   }
 
   Future<void> _generateAndShowQrCode() async {
@@ -507,22 +536,25 @@ class MapScreenState extends State<MapScreen> {
     }
   }
 
-  // In your MapScreenState class (lib/screens/map_screen.dart)
-
   Future<void> _saveMap() async {
+    if (_markedPoints.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please mark at least one point to save a new map.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     final dbHelper = DatabaseHelper.instance;
 
-    // Use a TextEditingController specifically for this dialog
-    final TextEditingController nameController;
     String dialogTitle;
 
     if (_currentLoadedMap != null) {
-      // If a map is currently loaded for editing, pre-fill its name
-      nameController = TextEditingController(text: _currentLoadedMap!.name);
+      _mapNameController.text = _currentLoadedMap!.name;
       dialogTitle = 'Save Changes to Map';
     } else {
-      // If no map is loaded (new map), start with an empty controller
-      nameController = TextEditingController();
+      _mapNameController.text = '';
       dialogTitle = 'Save New Map';
     }
 
@@ -532,23 +564,21 @@ class MapScreenState extends State<MapScreen> {
         return AlertDialog(
           title: Text(dialogTitle),
           content: TextField(
-            controller: nameController,
+            enabled: _currentLoadedMap == null,
+            controller: _mapNameController,
             decoration: const InputDecoration(hintText: 'Enter map name'),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                nameController
-                    .dispose(); // Dispose the controller when dialog is dismissed
+                _mapNameController.dispose();
                 Navigator.of(context).pop();
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                final result = nameController.text;
-                nameController
-                    .dispose(); // Dispose the controller when dialog is dismissed
+                final result = _mapNameController.text;
                 Navigator.of(context).pop(result);
               },
               child: const Text('Save'),
@@ -560,9 +590,7 @@ class MapScreenState extends State<MapScreen> {
 
     if (mapName != null && mapName.isNotEmpty) {
       final MapData mapToSave = MapData(
-        id:
-            _currentLoadedMap
-                ?.id, // Pass existing ID if present, otherwise null for new map
+        id: _currentLoadedMap?.id,
         name: mapName,
         points:
             _markedPoints
@@ -579,9 +607,7 @@ class MapScreenState extends State<MapScreen> {
       );
 
       if (_currentLoadedMap != null && _currentLoadedMap!.id != null) {
-        // If editing an existing map, update it
         await dbHelper.updateMap(mapToSave);
-        // Update _currentLoadedMap to reflect any name change and current points
         _currentLoadedMap = mapToSave;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -589,9 +615,7 @@ class MapScreenState extends State<MapScreen> {
           );
         }
       } else {
-        // If saving a new map, insert it
         final newId = await dbHelper.insertMap(mapToSave);
-        // Set the newly saved map as the current loaded map
         _currentLoadedMap = MapData(
           id: newId,
           name: mapToSave.name,
@@ -607,26 +631,22 @@ class MapScreenState extends State<MapScreen> {
   }
 
   void _loadMap(MapData mapData) {
-    // <--- CHANGE PARAMETER TYPE
     setState(() {
-      _currentLoadedMap = mapData; // <--- Store the loaded map data
+      _currentLoadedMap = mapData;
       _markedPoints.clear();
       _pointNames.clear();
       _markers.clear();
 
-      // Populate points from the loaded mapData
       for (var p in mapData.points) {
         _markedPoints.add(LatLng(p.latitude, p.longitude));
         _pointNames.add(p.name);
       }
       _rebuildMarkersAfterReorder();
 
-      // Optionally, center the map on the first point or a suitable zoom level
       if (_markedPoints.isNotEmpty) {
         mapController.move(_markedPoints.first, initialZoom);
       }
     });
-    // Show a confirmation message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Map "${mapData.name}" loaded for editing.')),
     );
@@ -636,15 +656,13 @@ class MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Geo Marker App'),
+        title: const Text('Map Locator'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: _showSearchDialog, // Call the new dialog function
+            onPressed: _showSearchDialog,
           ),
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveMap),
           IconButton(
-            icon: const Icon(Icons.folder_open), // Add the load map icon
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -652,116 +670,136 @@ class MapScreenState extends State<MapScreen> {
                 ),
               );
             },
+            icon: const Icon(Icons.list_rounded),
           ),
-          IconButton(
-            icon: const Icon(Icons.note_add), // Icon for "New Map"
-            tooltip: 'Start New Map',
-            onPressed: () {
+        ],
+      ),
+      body: CircularMenu(
+        alignment: Alignment.bottomLeft,
+        backgroundWidget: Stack(
+          children: [
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: currentCenter,
+                initialZoom: initialZoom,
+                onLongPress: (tapPosition, point) {
+                  _addMarker(point);
+                },
+                onMapEvent: (MapEvent event) {
+                  setState(() {
+                    if (event is MapEventMove) {
+                      currentCenter = event.camera.center;
+                    }
+                    if (event is MapEventMoveEnd ||
+                        event is MapEventDoubleTapZoomEnd ||
+                        event is MapEventFlingAnimationEnd ||
+                        event is MapEventRotateEnd ||
+                        event is MapEventScrollWheelZoom) {
+                      if (initialZoom < event.camera.zoom) {
+                        initialZoom += 1;
+                      } else if (initialZoom > event.camera.zoom) {
+                        initialZoom -= 1;
+                      }
+                    }
+                  });
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c'],
+                  tileProvider: CancellableNetworkTileProvider(),
+                ),
+                MarkerLayer(
+                  markers: [
+                    if (_userLocation != null)
+                      Marker(
+                        width: 80.0,
+                        height: 80.0,
+                        point: _userLocation!,
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: Colors.red,
+                          size: 40.0,
+                        ),
+                      ),
+                    ..._markers,
+                  ],
+                ),
+              ],
+            ),
+            // Using the new MapControls widget
+            MapControls(
+              onCenterToUser: _centerMapToUser,
+              onZoomIn: () {
+                setState(() {
+                  initialZoom++;
+                  mapController.move(currentCenter, initialZoom);
+                });
+              },
+              onZoomOut: () {
+                setState(() {
+                  initialZoom--;
+                  mapController.move(currentCenter, initialZoom);
+                });
+              },
+            ),
+
+            MarkedPointsList(
+              markedPoints: _markedPoints,
+              pointNames: _pointNames,
+              onRenamePoint: _renamePoint,
+              onRemoveMarker: _removeMarker,
+              onReorderPoints: _onReorderPoints,
+            ),
+          ],
+        ),
+        toggleButtonBoxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 10),
+        ],
+        toggleButtonColor: Colors.blue,
+        toggleButtonIconColor: Colors.white,
+        toggleButtonPadding: 16.0,
+        toggleButtonSize: 24.0,
+        curve: Curves.easeOutExpo,
+        reverseCurve: Curves.easeInExpo,
+        radius: 100,
+        items: [
+          CircularMenuItem(
+            icon: Icons.add_location_rounded,
+            color: Colors.blue,
+            iconSize: 24.0,
+            onTap: () {
               setState(() {
                 _markedPoints.clear();
                 _pointNames.clear();
                 _markers.clear();
                 _rebuildMarkersAfterReorder();
-                _currentLoadedMap =
-                    null; // IMPORTANT: Clear the loaded map state
+                _currentLoadedMap = null;
               });
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Cleared map. Starting new.')),
               );
             },
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: mapController,
-            options: MapOptions(
-              initialCenter: currentCenter,
-              initialZoom: initialZoom,
-              onLongPress: (tapPosition, point) {
-                _addMarker(point);
-              },
-              onMapEvent: (MapEvent event) {
-                setState(() {
-                  if (event is MapEventMove) {
-                    currentCenter = event.camera.center;
-                  }
-                  if (event is MapEventMoveEnd ||
-                      event is MapEventDoubleTapZoomEnd ||
-                      event is MapEventFlingAnimationEnd ||
-                      event is MapEventRotateEnd ||
-                      event is MapEventScrollWheelZoom) {
-                    if (initialZoom < event.camera.zoom) {
-                      initialZoom += 1;
-                    } else if (initialZoom > event.camera.zoom) {
-                      initialZoom -= 1;
-                    }
-                  }
-                });
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c'],
-                tileProvider: CancellableNetworkTileProvider(),
-              ),
-              MarkerLayer(
-                markers: [
-                  if (_userLocation != null)
-                    Marker(
-                      width: 80.0,
-                      height: 80.0,
-                      point: _userLocation!,
-                      child: const Icon(
-                        Icons.location_pin,
-                        color: Colors.red,
-                        size: 40.0,
-                      ),
-                    ),
-                  ..._markers,
-                ],
-              ),
-            ],
+          CircularMenuItem(
+            icon: Icons.save,
+            color: Colors.blue,
+            iconSize: 24.0,
+            onTap: _saveMap,
           ),
-          // Using the new MapControls widget
-          MapControls(
-            onClearMarkers: () {
-              setState(() {
-                _markers.clear();
-                _markedPoints.clear();
-                _pointNames.clear();
-              });
-            },
-            onShareMarkers: () {
-              if (_markedPoints.isNotEmpty) {
-                MapUtils.getGoogleMapsUrl(_markedPoints);
-              }
-            },
-            onCenterToUser: _centerMapToUser,
-            onZoomIn: () {
-              setState(() {
-                initialZoom++;
-                mapController.move(currentCenter, initialZoom);
-              });
-            },
-            onZoomOut: () {
-              setState(() {
-                initialZoom--;
-                mapController.move(currentCenter, initialZoom);
-              });
-            },
-            onQRCodeGeneration: _generateAndShowQrCode,
-            hasMarkedPoints: _markedPoints.isNotEmpty,
+          CircularMenuItem(
+            icon: Icons.qr_code_rounded,
+            color: Colors.blue,
+            iconSize: 24.0,
+            onTap: _generateAndShowQrCode,
           ),
-
-          MarkedPointsList(
-            markedPoints: _markedPoints,
-            pointNames: _pointNames,
-            onRenamePoint: _renamePoint,
-            onRemoveMarker: _removeMarker,
-            onReorderPoints: _onReorderPoints,
+          CircularMenuItem(
+            icon: Icons.map,
+            color: Colors.blue,
+            iconSize: 24.0,
+            onTap: _launchRoutesOnGoogleMap,
           ),
         ],
       ),
