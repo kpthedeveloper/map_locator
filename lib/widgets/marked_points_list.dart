@@ -99,29 +99,58 @@ class MarkedPointsList extends StatelessWidget {
                                 ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.edit, size: 18.0),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        size: 18.0,
+                                        color: Colors.green,
+                                      ),
                                       onPressed: () {
                                         onRenamePoint(index);
                                       },
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth:
+                                            32.0, // Standard minimum for tap targets, keep for good UX
+                                        minHeight: 32.0,
+                                      ),
                                     ),
                                     IconButton(
                                       icon: const Icon(
                                         Icons.delete_rounded,
-                                        color: Colors.red,
                                         size: 18.0,
+                                        color: Colors.red,
                                       ),
                                       onPressed: () {
                                         onRemoveMarker(point);
                                       },
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth:
+                                            32.0, // Standard minimum for tap targets, keep for good UX
+                                        minHeight: 32.0,
+                                      ),
                                     ),
+
+                                    // OPTIONAL: If you want a small explicit gap between Clear and Drag Handle
+                                    // const SizedBox(width: 4.0), // Adjust this value as needed
                                     ReorderableDragStartListener(
                                       index: index,
-                                      child: Icon(
-                                        Icons.drag_indicator_rounded,
-                                        color: Colors.blue,
-                                        size: 18.0,
+                                      child: Container(
+                                        // REDUCE THIS PADDING to bring the drag handle closer
+                                        // Changed from horizontal: 8.0 to 4.0
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 0.0,
+                                        ), // <--- ADJUSTED HERE
+                                        child: const Icon(
+                                          Icons
+                                              .drag_indicator, // Your custom icon
+                                          color:
+                                              Colors.grey, // Your custom color
+                                          size: 24.0,
+                                        ),
                                       ),
                                     ),
                                   ],

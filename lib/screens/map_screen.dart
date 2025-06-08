@@ -17,6 +17,7 @@ import 'package:share_plus/share_plus.dart'; // For sharing
 import 'package:flutter/scheduler.dart'; // Add this import for SchedulerBinding
 // For RenderRepaintBoundary
 import 'dart:async';
+import 'package:geocoding/geocoding.dart' as geo;
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -37,10 +38,19 @@ class MapScreenState extends State<MapScreen> {
   ); // Initialize at Scherpenheuvel-Zichem
   LatLng? _userLocation;
   final GlobalKey _qrKey = GlobalKey();
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _getLocation();
+  }
+
+  @override
+  void dispose() {
+    // <--- ADD THIS dispose method to clean up the controller
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _getLocation() async {
@@ -380,10 +390,132 @@ class MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _showSearchDialog() async {
+    _searchController.clear(); // Clear previous search text
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Search Location'),
+          content: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Enter address or place name',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true, // Automatically focus on the text field
+            onSubmitted: (value) {
+              // Allows searching on keyboard "done" or "enter"
+              Navigator.of(dialogContext).pop();
+              if (value.isNotEmpty) {
+                _searchLocation(value);
+              }
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close dialog
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close dialog
+                if (_searchController.text.isNotEmpty) {
+                  _searchLocation(_searchController.text);
+                }
+              },
+              child: const Text('Search'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Performs the geocoding search and moves the map to the found location.
+  Future<void> _searchLocation(String query) async {
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a location to search.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Searching for location...')));
+
+    try {
+      // Use the geocoding package to get locations from the address query
+      final List<geo.Location> locations = await geo.locationFromAddress(query);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).hideCurrentSnackBar(); // Hide "Searching..."
+      }
+      if (locations.isNotEmpty) {
+        final geo.Location firstLocation = locations.first;
+        final LatLng foundLatLng = LatLng(
+          firstLocation.latitude,
+          firstLocation.longitude,
+        );
+        setState(() {
+          initialZoom += 2;
+        });
+        // Move the map camera to the found location
+        mapController.move(
+          foundLatLng,
+          initialZoom,
+        ); // Maintain current zoom or set a specific zoom level
+
+        // Optionally, show a temporary marker or highlight the found location visually
+        // For simplicity, we'll just move the map. The user can long-press to add a permanent marker.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Found: ${firstLocation.latitude.toStringAsFixed(4)}, ${firstLocation.longitude.toStringAsFixed(4)}',
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No results found for "$query".')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).hideCurrentSnackBar(); // Hide "Searching..."
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error searching: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Geo Marker App')),
+      appBar: AppBar(
+        title: const Text('Geo Marker App'),
+        actions: [
+          IconButton(
+            // <--- ADD THIS ICON BUTTON
+            icon: const Icon(Icons.search),
+            onPressed: _showSearchDialog, // Call the new dialog function
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           FlutterMap(
