@@ -21,6 +21,7 @@ import 'package:flutter/scheduler.dart';
 import 'dart:async';
 import 'package:geocoding/geocoding.dart' as geo;
 import 'package:circular_menu/circular_menu.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -197,7 +198,26 @@ class MapScreenState extends State<MapScreen> {
       }
       return;
     }
-    //launch google maps with the generated URL
+    final Uri url = Uri.parse(googleMapsUrl);
+
+    // Attempt to launch the URL as an external application (e.g., native Google Maps app)
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      // If launching as an external application fails, try as a platform default (e.g., web browser)
+      if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Could not launch Google Maps. Make sure you have a browser or the Google Maps app installed.',
+              ),
+              duration: const Duration(
+                seconds: 5,
+              ), // Increased duration for clearer error
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _generateAndShowQrCode() async {
