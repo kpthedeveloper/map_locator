@@ -1,11 +1,11 @@
 // lib/screens/saved_maps_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:map_locator/utils/database_helper.dart';
 import 'package:map_locator/models/map_data.dart';
 
 class SavedMapsScreen extends StatefulWidget {
-  // --- FIX THIS LINE: Change the type of onLoadMap to accept MapData ---
   final Function(MapData) onLoadMap;
 
   const SavedMapsScreen({super.key, required this.onLoadMap});
@@ -15,7 +15,6 @@ class SavedMapsScreen extends StatefulWidget {
 }
 
 class SavedMapsScreenState extends State<SavedMapsScreen> {
-  // ... (rest of your SavedMapsScreenState class remains the same) ...
   late Future<List<MapData>> _mapsFuture;
 
   @override
@@ -42,9 +41,17 @@ class SavedMapsScreenState extends State<SavedMapsScreen> {
                 final map = maps[index];
                 return ListTile(
                   title: Text(map.name),
-                  subtitle: Text('${map.points.length} points'),
+                  subtitle: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('${map.points.length} point(s)'),
+                      Text(
+                        'Modified: ${DateFormat('dd MMM yy hh:mm').format(map.lastModifiedOn.toLocal())}',
+                      ),
+                    ],
+                  ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete),
+                    icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
                       await DatabaseHelper.instance.deleteMap(map.id!);
                       setState(() {
@@ -55,7 +62,6 @@ class SavedMapsScreenState extends State<SavedMapsScreen> {
                     },
                   ),
                   onTap: () {
-                    // This part is already correct as it passes the whole map object
                     widget.onLoadMap(map);
                     Navigator.of(context).pop(); // Go back to the map screen
                   },

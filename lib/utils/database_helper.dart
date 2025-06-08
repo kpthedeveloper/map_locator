@@ -21,14 +21,46 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'map_database.db');
 
-    return await openDatabase(path, version: 1, onCreate: _onCreate);
+    return await openDatabase(
+      path,
+      version: 2, // <--- INCREMENT DATABASE VERSION TO 2
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade, // <--- ADD onUpgrade CALLBACK
+    );
   }
+
+  // --- NEW: Database Migration Logic ---
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // This block runs if a user upgrades the app and their database is older.
+    if (oldVersion < 2) {
+      // Migrate from version 1 to version 2
+      // Add new columns to the 'maps' table
+      await db.execute('ALTER TABLE maps ADD COLUMN createdOn TEXT;');
+      await db.execute('ALTER TABLE maps ADD COLUMN lastModifiedOn TEXT;');
+
+      // For existing rows, populate these new fields with the current timestamp.
+      // This prevents null values when old data is read with the new schema.
+      final now = DateTime.now().toIso8601String();
+      await db.execute(
+        'UPDATE maps SET createdOn = ? WHERE createdOn IS NULL;',
+        [now],
+      );
+      await db.execute(
+        'UPDATE maps SET lastModifiedOn = ? WHERE lastModifiedOn IS NULL;',
+        [now],
+      );
+    }
+    // If you add more versions in the future, you'd add more `if (oldVersion < X)` blocks here.
+  }
+  // --- END NEW: Database Migration Logic ---
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE maps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT
+        name TEXT,
+        createdOn TEXT,     -- <--- NEW COLUMN
+        lastModifiedOn TEXT -- <--- NEW COLUMN
       )
     ''');
     await db.execute('''
@@ -38,14 +70,19 @@ class DatabaseHelper {
         latitude REAL,
         longitude REAL,
         name TEXT,
-        FOREIGN KEY (map_id) REFERENCES maps(id)
+        FOREIGN KEY (map_id) REFERENCES maps(id) ON DELETE CASCADE -- <--- Added ON DELETE CASCADE for data integrity
       )
     ''');
   }
 
   Future<int> insertMap(MapData mapData) async {
     final db = await database;
-    final mapId = await db.insert('maps', {'name': mapData.name});
+    final mapId = await db.insert('maps', {
+      'name': mapData.name,
+      'createdOn': mapData.createdOn.toIso8601String(), // <--- ADDED FIELD
+      'lastModifiedOn':
+          mapData.lastModifiedOn.toIso8601String(), // <--- ADDED FIELD
+    });
     for (final point in mapData.points) {
       await db.insert('points', {
         'map_id': mapId,
@@ -59,7 +96,10 @@ class DatabaseHelper {
 
   Future<List<MapData>> getMaps() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('maps');
+    final List<Map<String, dynamic>> maps = await db.query(
+      'maps',
+      orderBy: 'lastModifiedOn DESC',
+    );
     return Future.wait(
       maps.map((map) async {
         final List<Map<String, dynamic>> points = await db.query(
@@ -76,10 +116,15 @@ class DatabaseHelper {
     final db = await database;
     await db.update(
       'maps',
-      {'name': mapData.name},
+      {
+        'name': mapData.name,
+        'lastModifiedOn':
+            DateTime.now().toIso8601String(), // <--- UPDATE ONLY lastModifiedOn
+      },
       where: 'id = ?',
       whereArgs: [mapData.id],
     );
+    // Delete existing points and insert new ones to reflect changes
     await db.delete('points', where: 'map_id = ?', whereArgs: [mapData.id]);
     for (final point in mapData.points) {
       await db.insert('points', {
@@ -94,7 +139,15 @@ class DatabaseHelper {
 
   Future<void> deleteMap(int id) async {
     final db = await database;
-    await db.delete('points', where: 'map_id = ?', whereArgs: [id]);
-    await db.delete('maps', where: 'id = ?', whereArgs: [id]);
+    await db.delete(
+      'points',
+      where: 'map_id = ?',
+      whereArgs: [id],
+    ); // Delete associated points first
+    await db.delete(
+      'maps',
+      where: 'id = ?',
+      whereArgs: [id],
+    ); // Then delete the map entry
   }
 }
