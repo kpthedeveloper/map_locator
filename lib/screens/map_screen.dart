@@ -402,7 +402,7 @@ class MapScreenState extends State<MapScreen> {
             controller: _searchController,
             decoration: const InputDecoration(
               hintText: 'Enter address or place name',
-              border: OutlineInputBorder(),
+              //border: OutlineInputBorder(),
             ),
             autofocus: true, // Automatically focus on the text field
             onSubmitted: (value) {
