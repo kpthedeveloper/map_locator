@@ -6,6 +6,7 @@ class MapControls extends StatelessWidget {
   final VoidCallback onCenterToUser;
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
+  final VoidCallback onQRCodeGeneration;
   final bool hasMarkedPoints; // New parameter to indicate if points are marked
 
   const MapControls({
@@ -15,6 +16,7 @@ class MapControls extends StatelessWidget {
     required this.onCenterToUser,
     required this.onZoomIn,
     required this.onZoomOut,
+    required this.onQRCodeGeneration,
     required this.hasMarkedPoints, // Initialize the new parameter
   });
 
@@ -22,6 +24,7 @@ class MapControls extends StatelessWidget {
   Widget build(BuildContext context) {
     // Determine the color for the share icon and if the button should be enabled
     final Color shareIconColor = hasMarkedPoints ? Colors.green : Colors.grey;
+    final Color qrIconColor = hasMarkedPoints ? Colors.blue : Colors.grey;
     final VoidCallback? shareOnPressed =
         hasMarkedPoints ? onShareMarkers : null;
 
@@ -33,6 +36,16 @@ class MapControls extends StatelessWidget {
           Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              FloatingActionButton(
+                heroTag: 'qrCode',
+                onPressed: onQRCodeGeneration, // Use the conditional onPressed
+                child: Icon(
+                  Icons.qr_code_rounded,
+                  color: qrIconColor,
+                ), // Use conditional color
+              ),
+
+              const SizedBox(height: 20.0),
               // Share Markers button
               FloatingActionButton(
                 heroTag: 'googleMaps',
