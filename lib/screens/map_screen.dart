@@ -516,16 +516,10 @@ class MapScreenState extends State<MapScreen> {
           firstLocation.longitude,
         );
         setState(() {
-          initialZoom += 2;
+          initialZoom = 17;
         });
         // Move the map camera to the found location
-        mapController.move(
-          foundLatLng,
-          initialZoom,
-        ); // Maintain current zoom or set a specific zoom level
-
-        // Optionally, show a temporary marker or highlight the found location visually
-        // For simplicity, we'll just move the map. The user can long-press to add a permanent marker.
+        mapController.move(foundLatLng, initialZoom);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
