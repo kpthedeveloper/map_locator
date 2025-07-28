@@ -7,16 +7,14 @@ class MarkedPointsList extends StatelessWidget {
   final List<String> pointNames;
   final Function(int) onRenamePoint;
   final Function(LatLng) onRemoveMarker;
-  final Function(int oldIndex, int newIndex)
-  onReorderPoints; // NEW: Callback for reordering
-
+  final Function(int oldIndex, int newIndex) onReorderPoints;
   const MarkedPointsList({
     super.key,
     required this.markedPoints,
     required this.pointNames,
     required this.onRenamePoint,
     required this.onRemoveMarker,
-    required this.onReorderPoints, // NEW: Required in constructor
+    required this.onReorderPoints,
   });
 
   @override
@@ -30,7 +28,7 @@ class MarkedPointsList extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(8.0),
           constraints: BoxConstraints(
-            maxHeight: 400.0, // Max height for the entire list container
+            maxHeight: 400.0,
             maxWidth:
                 MediaQuery.of(context).size.width > 600
                     ? MediaQuery.of(context).size.width * 0.25
@@ -40,7 +38,6 @@ class MarkedPointsList extends StatelessWidget {
               markedPoints.isEmpty
                   ? const Text("No points marked yet.")
                   : SingleChildScrollView(
-                    // Allows the entire list container to scroll if contents exceed maxHeight
                     child: ExpansionTile(
                       tilePadding: const EdgeInsets.symmetric(
                         horizontal: 8.0,
@@ -53,26 +50,19 @@ class MarkedPointsList extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      // ReorderableListView will be a child of ExpansionTile
+
                       children: [
                         ReorderableListView.builder(
-                          shrinkWrap:
-                              true, // Crucial for nesting inside ExpansionTile
-                          physics:
-                              const NeverScrollableScrollPhysics(), // Crucial to allow parent SingleChildScrollView to handle scrolling
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
                           itemCount: markedPoints.length,
                           buildDefaultDragHandles: false,
-                          onReorder:
-                              onReorderPoints, // <-- Pass the reorder callback here
+                          onReorder: onReorderPoints,
                           itemBuilder: (context, index) {
                             final point = markedPoints[index];
-                            // Each item in ReorderableListView MUST have a unique key.
-                            // Using ObjectKey(point) is good as it keys by object identity,
-                            // which is unique for each LatLng instance in the list.
+
                             return Padding(
-                              key: ObjectKey(
-                                point,
-                              ), // <-- UNIQUE KEY REQUIRED FOR REORDERABLELISTVIEW
+                              key: ObjectKey(point),
                               padding: const EdgeInsets.symmetric(
                                 vertical: 0.0,
                               ),
@@ -93,7 +83,7 @@ class MarkedPointsList extends StatelessWidget {
                                   radius: 12.0,
                                   backgroundColor: Colors.blue.shade100,
                                   child: Text(
-                                    '${index + 1}', // Display current visual index as serial number
+                                    '${index + 1}',
                                     style: const TextStyle(fontSize: 10.0),
                                   ),
                                 ),
@@ -112,8 +102,7 @@ class MarkedPointsList extends StatelessWidget {
                                       },
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(
-                                        minWidth:
-                                            32.0, // Standard minimum for tap targets, keep for good UX
+                                        minWidth: 32.0,
                                         minHeight: 32.0,
                                       ),
                                     ),
@@ -128,27 +117,20 @@ class MarkedPointsList extends StatelessWidget {
                                       },
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(
-                                        minWidth:
-                                            32.0, // Standard minimum for tap targets, keep for good UX
+                                        minWidth: 32.0,
                                         minHeight: 32.0,
                                       ),
                                     ),
 
-                                    // OPTIONAL: If you want a small explicit gap between Clear and Drag Handle
-                                    // const SizedBox(width: 4.0), // Adjust this value as needed
                                     ReorderableDragStartListener(
                                       index: index,
                                       child: Container(
-                                        // REDUCE THIS PADDING to bring the drag handle closer
-                                        // Changed from horizontal: 8.0 to 4.0
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 0.0,
-                                        ), // <--- ADJUSTED HERE
+                                        ),
                                         child: const Icon(
-                                          Icons
-                                              .drag_indicator, // Your custom icon
-                                          color:
-                                              Colors.grey, // Your custom color
+                                          Icons.drag_indicator,
+                                          color: Colors.grey,
                                           size: 24.0,
                                         ),
                                       ),

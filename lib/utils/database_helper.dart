@@ -2,7 +2,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:async';
-import 'package:map_locator/models/map_data.dart'; // Import your MapData class
+import 'package:map_locator/models/map_data.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -23,23 +23,17 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // <--- INCREMENT DATABASE VERSION TO 2
+      version: 2,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade, // <--- ADD onUpgrade CALLBACK
+      onUpgrade: _onUpgrade,
     );
   }
 
-  // --- NEW: Database Migration Logic ---
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // This block runs if a user upgrades the app and their database is older.
     if (oldVersion < 2) {
-      // Migrate from version 1 to version 2
-      // Add new columns to the 'maps' table
       await db.execute('ALTER TABLE maps ADD COLUMN createdOn TEXT;');
       await db.execute('ALTER TABLE maps ADD COLUMN lastModifiedOn TEXT;');
 
-      // For existing rows, populate these new fields with the current timestamp.
-      // This prevents null values when old data is read with the new schema.
       final now = DateTime.now().toIso8601String();
       await db.execute(
         'UPDATE maps SET createdOn = ? WHERE createdOn IS NULL;',
@@ -50,9 +44,7 @@ class DatabaseHelper {
         [now],
       );
     }
-    // If you add more versions in the future, you'd add more `if (oldVersion < X)` blocks here.
   }
-  // --- END NEW: Database Migration Logic ---
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
@@ -79,9 +71,8 @@ class DatabaseHelper {
     final db = await database;
     final mapId = await db.insert('maps', {
       'name': mapData.name,
-      'createdOn': mapData.createdOn.toIso8601String(), // <--- ADDED FIELD
-      'lastModifiedOn':
-          mapData.lastModifiedOn.toIso8601String(), // <--- ADDED FIELD
+      'createdOn': mapData.createdOn.toIso8601String(),
+      'lastModifiedOn': mapData.lastModifiedOn.toIso8601String(),
     });
     for (final point in mapData.points) {
       await db.insert('points', {
@@ -118,13 +109,12 @@ class DatabaseHelper {
       'maps',
       {
         'name': mapData.name,
-        'lastModifiedOn':
-            DateTime.now().toIso8601String(), // <--- UPDATE ONLY lastModifiedOn
+        'lastModifiedOn': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [mapData.id],
     );
-    // Delete existing points and insert new ones to reflect changes
+
     await db.delete('points', where: 'map_id = ?', whereArgs: [mapData.id]);
     for (final point in mapData.points) {
       await db.insert('points', {
@@ -139,15 +129,7 @@ class DatabaseHelper {
 
   Future<void> deleteMap(int id) async {
     final db = await database;
-    await db.delete(
-      'points',
-      where: 'map_id = ?',
-      whereArgs: [id],
-    ); // Delete associated points first
-    await db.delete(
-      'maps',
-      where: 'id = ?',
-      whereArgs: [id],
-    ); // Then delete the map entry
+    await db.delete('points', where: 'map_id = ?', whereArgs: [id]);
+    await db.delete('maps', where: 'id = ?', whereArgs: [id]);
   }
 }

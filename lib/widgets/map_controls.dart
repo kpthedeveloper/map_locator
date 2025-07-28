@@ -22,24 +22,24 @@ class MapControls extends StatelessWidget {
         children: [
           Column(
             mainAxisAlignment: MainAxisAlignment.end,
-            // Use a Column to stack the FABs
+
             children: [
               FloatingActionButton(
-                heroTag: 'centerToUser', // Unique tag
+                heroTag: 'centerToUser',
                 onPressed: onCenterToUser,
                 child: const Icon(Icons.my_location, color: Colors.blue),
               ),
-              const SizedBox(height: 20.0), // Spacing between buttons
-              // Zoom In button
+              const SizedBox(height: 20.0),
+
               FloatingActionButton(
-                heroTag: 'zoomIn', // Unique tag
+                heroTag: 'zoomIn',
                 onPressed: onZoomIn,
                 child: const Icon(Icons.zoom_in_rounded),
               ),
-              const SizedBox(height: 20.0), // Spacing between buttons
-              // Zoom Out button
+              const SizedBox(height: 20.0),
+
               FloatingActionButton(
-                heroTag: 'zoomOut', // Unique tag
+                heroTag: 'zoomOut',
                 onPressed: onZoomOut,
                 child: const Icon(Icons.zoom_out_rounded),
               ),

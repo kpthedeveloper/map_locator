@@ -55,15 +55,13 @@ class SavedMapsScreenState extends State<SavedMapsScreen> {
                     onPressed: () async {
                       await DatabaseHelper.instance.deleteMap(map.id!);
                       setState(() {
-                        _mapsFuture =
-                            DatabaseHelper.instance
-                                .getMaps(); // Refresh the list
+                        _mapsFuture = DatabaseHelper.instance.getMaps();
                       });
                     },
                   ),
                   onTap: () {
                     widget.onLoadMap(map);
-                    Navigator.of(context).pop(); // Go back to the map screen
+                    Navigator.of(context).pop();
                   },
                 );
               },

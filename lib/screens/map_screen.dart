@@ -80,7 +80,7 @@ class MapScreenState extends State<MapScreen> {
       });
     } catch (e) {
       if (kIsWeb) {
-        setState(() {}); // Trigger rebuild for web
+        setState(() {});
       }
     }
   }
@@ -88,10 +88,8 @@ class MapScreenState extends State<MapScreen> {
   void _addMarker(LatLng position) {
     setState(() {
       _markedPoints.add(position);
-      _pointNames.add(
-        'Point ${_markedPoints.length}',
-      ); // Assign initial name based on new length
-      _rebuildMarkersAfterReorder(); // Rebuild markers after adding
+      _pointNames.add('Point ${_markedPoints.length}');
+      _rebuildMarkersAfterReorder();
     });
   }
 
@@ -105,7 +103,7 @@ class MapScreenState extends State<MapScreen> {
       if (indexToRemove != -1) {
         _markedPoints.removeAt(indexToRemove);
         _pointNames.removeAt(indexToRemove);
-        _rebuildMarkersAfterReorder(); // Rebuild markers after removing
+        _rebuildMarkersAfterReorder();
       }
     });
   }
@@ -113,17 +111,15 @@ class MapScreenState extends State<MapScreen> {
   void _onReorderPoints(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) {
-        newIndex -= 1; // Adjust index when moving down
+        newIndex -= 1;
       }
-      // Reorder markedPoints
+
       final LatLng removedPoint = _markedPoints.removeAt(oldIndex);
       _markedPoints.insert(newIndex, removedPoint);
 
-      // Reorder pointNames (must be kept in sync)
       final String removedName = _pointNames.removeAt(oldIndex);
       _pointNames.insert(newIndex, removedName);
 
-      // Now, rebuild the map markers to reflect the new order and serial numbers
       _rebuildMarkersAfterReorder();
     });
   }
@@ -200,9 +196,7 @@ class MapScreenState extends State<MapScreen> {
     }
     final Uri url = Uri.parse(googleMapsUrl);
 
-    // Attempt to launch the URL as an external application (e.g., native Google Maps app)
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      // If launching as an external application fails, try as a platform default (e.g., web browser)
       if (!await launchUrl(url, mode: LaunchMode.platformDefault)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -210,9 +204,7 @@ class MapScreenState extends State<MapScreen> {
               content: Text(
                 'Could not launch Google Maps. Make sure you have a browser or the Google Maps app installed.',
               ),
-              duration: const Duration(
-                seconds: 5,
-              ), // Increased duration for clearer error
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -253,34 +245,29 @@ class MapScreenState extends State<MapScreen> {
       showDialog(
         context: context,
         builder: (BuildContext dialogContext) {
-          // Renamed context to dialogContext for clarity
           return AlertDialog(
             title: const Text('Map Locator QR Code'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Wrap QrImageView in a RepaintBoundary with a GlobalKey
                 RepaintBoundary(
-                  key: _qrKey, // Assign the GlobalKey here
+                  key: _qrKey,
                   child: SizedBox(
-                    width: 200.0, // Explicitly set width
-                    height: 200.0, // Explicitly set height
+                    width: 200.0,
+                    height: 200.0,
                     child: QrImageView(
                       data: googleMapsUrl,
                       version: QrVersions.auto,
-                      size:
-                          200.0, // This size property affects the internal rendering of the QR code
+                      size: 200.0,
                       gapless: false,
                       backgroundColor: Colors.white,
-                      // Use eyeStyle and dataModuleStyle for coloring
+
                       eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square, // Or QrEyeShape.circle
+                        eyeShape: QrEyeShape.square,
                         color: Colors.black,
                       ),
                       dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape:
-                            QrDataModuleShape
-                                .square, // Or QrDataModuleShape.circle
+                        dataModuleShape: QrDataModuleShape.square,
                         color: Colors.black,
                       ),
                       errorStateBuilder: (cxt, err) {
@@ -305,15 +292,13 @@ class MapScreenState extends State<MapScreen> {
             actions: <Widget>[
               TextButton(
                 onPressed: () {
-                  Navigator.of(dialogContext).pop(); // Use dialogContext here
+                  Navigator.of(dialogContext).pop();
                 },
                 child: const Text('Close'),
               ),
-              // Share QR button
+
               TextButton(
                 onPressed: () async {
-                  // Call the capture and share function.
-                  // It will handle popping the dialog once the process is complete.
                   await _captureAndShareQrCode(dialogContext: dialogContext);
                 },
                 child: const Text('Share QR'),
@@ -329,8 +314,6 @@ class MapScreenState extends State<MapScreen> {
     required BuildContext dialogContext,
   }) async {
     try {
-      // Use a Completer to await the result of addPostFrameCallback.
-      // This ensures the widget is rendered before attempting to capture.
       final completer = Completer<RenderRepaintBoundary?>();
       SchedulerBinding.instance.addPostFrameCallback((_) {
         completer.complete(
@@ -351,15 +334,12 @@ class MapScreenState extends State<MapScreen> {
               ),
             ),
           );
-          Navigator.of(dialogContext).pop(); // Pop on failure
+          Navigator.of(dialogContext).pop();
         }
         return;
       }
 
-      // Get image from boundary
-      ui.Image image = await boundary.toImage(
-        pixelRatio: 3.0,
-      ); // Adjust pixelRatio for quality
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
@@ -371,12 +351,11 @@ class MapScreenState extends State<MapScreen> {
               content: Text('Failed to convert QR code to image data.'),
             ),
           );
-          Navigator.of(dialogContext).pop(); // Pop on failure
+          Navigator.of(dialogContext).pop();
         }
         return;
       }
 
-      // Save image to a temporary file
       final directory = await getTemporaryDirectory();
       final imagePath = '${directory.path}/qrcode.png';
       final file = File(imagePath);
@@ -385,11 +364,10 @@ class MapScreenState extends State<MapScreen> {
       // Share the image file
       await Share.shareXFiles(
         [XFile(imagePath)],
-        text: 'Check out this Google Maps link!', // Optional text
-        subject: 'Map Locator QR Code', // Optional subject for email
+        text: 'Check out this Google Maps link!',
+        subject: 'Map Locator QR Code',
       );
 
-      // Pop the dialog AFTER successful capture and share
       if (dialogContext.mounted) {
         Navigator.of(dialogContext).pop();
       }
@@ -399,17 +377,16 @@ class MapScreenState extends State<MapScreen> {
         ScaffoldMessenger.of(dialogContext).showSnackBar(
           SnackBar(content: Text('Error sharing QR code: ${e.toString()}')),
         );
-        Navigator.of(dialogContext).pop(); // Pop on error as well
+        Navigator.of(dialogContext).pop();
       }
     }
   }
 
   void _rebuildMarkersAfterReorder() {
-    _markers.clear(); // Clear existing markers
+    _markers.clear();
     for (int i = 0; i < _markedPoints.length; i++) {
       final LatLng position = _markedPoints[i];
-      final serialNumber =
-          i + 1; // Recalculate serial number based on new order
+      final serialNumber = i + 1;
       _markers.add(
         Marker(
           width: 80.0,
@@ -432,7 +409,7 @@ class MapScreenState extends State<MapScreen> {
               ),
               GestureDetector(
                 onTap: () {
-                  _removeMarker(position); // Ensure tap to remove still works
+                  _removeMarker(position);
                 },
                 behavior: HitTestBehavior.opaque,
               ),
@@ -444,7 +421,7 @@ class MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _showSearchDialog() async {
-    _searchController.clear(); // Clear previous search text
+    _searchController.clear();
 
     return showDialog<void>(
       context: context,
@@ -455,11 +432,9 @@ class MapScreenState extends State<MapScreen> {
             controller: _searchController,
             decoration: const InputDecoration(
               hintText: 'Enter address or place name',
-              //border: OutlineInputBorder(),
             ),
-            autofocus: true, // Automatically focus on the text field
+            autofocus: true,
             onSubmitted: (value) {
-              // Allows searching on keyboard "done" or "enter"
               Navigator.of(dialogContext).pop();
               if (value.isNotEmpty) {
                 _searchLocation(value);
@@ -469,13 +444,13 @@ class MapScreenState extends State<MapScreen> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Close dialog
+                Navigator.of(dialogContext).pop();
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Close dialog
+                Navigator.of(dialogContext).pop();
                 if (_searchController.text.isNotEmpty) {
                   _searchLocation(_searchController.text);
                 }
@@ -488,7 +463,6 @@ class MapScreenState extends State<MapScreen> {
     );
   }
 
-  /// Performs the geocoding search and moves the map to the found location.
   Future<void> _searchLocation(String query) async {
     if (query.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -502,12 +476,9 @@ class MapScreenState extends State<MapScreen> {
     ).showSnackBar(const SnackBar(content: Text('Searching for location...')));
 
     try {
-      // Use the geocoding package to get locations from the address query
       final List<geo.Location> locations = await geo.locationFromAddress(query);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).hideCurrentSnackBar(); // Hide "Searching..."
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
       if (locations.isNotEmpty) {
         final geo.Location firstLocation = locations.first;
@@ -518,7 +489,7 @@ class MapScreenState extends State<MapScreen> {
         setState(() {
           initialZoom = 17;
         });
-        // Move the map camera to the found location
+
         mapController.move(foundLatLng, initialZoom);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -743,7 +714,7 @@ class MapScreenState extends State<MapScreen> {
                 ),
               ],
             ),
-            // Using the new MapControls widget
+
             MapControls(
               onCenterToUser: _centerMapToUser,
               onZoomIn: () {

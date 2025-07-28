@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart'; // Keep for kIsWeb if needed elsewhere in the class
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -36,31 +36,25 @@ class LocationService {
       throw Exception("Location permissions not granted or service disabled.");
     }
 
-    // Define location settings based on platform for high accuracy
     LocationSettings locationSettings;
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 0, // No distance filter
-        forceLocationManager: false, // Use FusedLocationProvider if available
-        intervalDuration: const Duration(
-          seconds: 1,
-        ), // How often to get updates
-        // Other Android-specific settings can be added here
+        distanceFilter: 0,
+        forceLocationManager: false,
+        intervalDuration: const Duration(seconds: 1),
       );
     } else if (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
       locationSettings = AppleSettings(
         accuracy: LocationAccuracy.high,
-        activityType: ActivityType.fitness, // Or appropriate type for your app
+        activityType: ActivityType.fitness,
         distanceFilter: 0,
         pauseLocationUpdatesAutomatically: true,
         showBackgroundLocationIndicator: false,
-        // Other iOS/macOS-specific settings can be added here
       );
     } else {
-      // For web, Windows, Linux, and fallback
       locationSettings = const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 0,
@@ -68,7 +62,6 @@ class LocationService {
     }
 
     return await Geolocator.getCurrentPosition(
-      // Use the settings parameter instead of desiredAccuracy
       locationSettings: locationSettings,
     );
   }
